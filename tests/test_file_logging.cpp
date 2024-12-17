@@ -153,7 +153,7 @@ TEST_CASE("rotating_file_logger5", "[rotating_logger]") {
             return filename;
         }
         const auto old_fname = spdlog::sinks::rotating_file_sink_st::calc_filename(filename, index);
-        return old_fname + ".test_suffix";
+        return spdlog::fmt_lib::format("{}.test_suffix", old_fname);
     });
     auto logger = std::make_shared<spdlog::logger>("rotating_sink_logger", sink);
 
