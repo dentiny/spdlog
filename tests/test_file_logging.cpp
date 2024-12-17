@@ -147,14 +147,17 @@ TEST_CASE("rotating_file_logger5", "[rotating_logger]") {
     prepare_logdir();
     size_t max_size = 1024 * 10;
     spdlog::filename_t basename = SPDLOG_FILENAME_T(ROTATING_LOG);
-    auto sink = std::make_shared<spdlog::sinks::rotating_file_sink_st>(basename, max_size, 2);
-    sink->set_rotate_filename_format([](const spdlog::filename_t &filename, std::size_t index) {
+    auto rotation_file_format = [](const spdlog::filename_t &filename, std::size_t index) -> spdlog::filename_t {
         if (index == 0u) {
             return filename;
         }
         const auto old_fname = spdlog::sinks::rotating_file_sink_st::calc_filename(filename, index);
         return spdlog::fmt_lib::format("{}.test_suffix", old_fname);
-    });
+    };
+    auto sink = std::make_shared<spdlog::sinks::rotating_file_sink_st>(
+        basename, max_size, /*max_files=*/2, /*rotate_on_open=*/false,
+        /*event_handlers=*/spdlog::file_event_handlers{},
+        /*rotation_file_format=*/std::move(rotation_file_format));
     auto logger = std::make_shared<spdlog::logger>("rotating_sink_logger", sink);
 
     logger->info("Test message - pre-rotation");

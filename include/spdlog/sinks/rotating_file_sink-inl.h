@@ -30,11 +30,13 @@ SPDLOG_INLINE rotating_file_sink<Mutex>::rotating_file_sink(
     std::size_t max_size,
     std::size_t max_files,
     bool rotate_on_open,
-    const file_event_handlers &event_handlers)
+    const file_event_handlers &event_handlers,
+    std::function<filename_t(const filename_t &filename, std::size_t index)> rotation_file_format)
     : base_filename_(std::move(base_filename)),
       max_size_(max_size),
       max_files_(max_files),
-      file_helper_{event_handlers} {
+      file_helper_{event_handlers},
+      rotation_file_format_(std::move(rotation_file_format)) {
     if (max_size == 0) {
         throw_spdlog_ex("rotating sink constructor: max_size arg cannot be zero");
     }
@@ -48,12 +50,6 @@ SPDLOG_INLINE rotating_file_sink<Mutex>::rotating_file_sink(
         rotate_();
         current_size_ = 0;
     }
-}
-
-template <typename Mutex>
-SPDLOG_INLINE void rotating_file_sink<Mutex>::set_rotate_filename_format(std::function<filename_t(const filename_t &filename, std::size_t index)> rotation_file_format) {
-    assert(!rotation_file_format_);
-    rotation_file_format_ = std::move(rotation_file_format);
 }
 
 template <typename Mutex>
