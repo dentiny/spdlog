@@ -9,6 +9,7 @@
 #include <spdlog/sinks/base_sink.h>
 
 #include <chrono>
+#include <functional>
 #include <mutex>
 #include <string>
 
@@ -26,9 +27,16 @@ public:
                        std::size_t max_files,
                        bool rotate_on_open = false,
                        const file_event_handlers &event_handlers = {});
+    // Default function to get rotation filename by base filename and rotation file index.
     static filename_t calc_filename(const filename_t &filename, std::size_t index);
     filename_t filename();
     void rotate_now();
+
+    // Set the file format for rotation files.
+    // NOTE:
+    // 1. The format function is supposed to be called only once, otherwise check failure.
+    // 2. If [index] is 0, [filename] is expected to return.
+    void set_rotate_filename_format(std::function<filename_t(const filename_t &filename, std::size_t index)> rotation_file_format);
 
 protected:
     void sink_it_(const details::log_msg &msg) override;
@@ -46,11 +54,15 @@ private:
     // return true on success, false otherwise.
     bool rename_file_(const filename_t &src_filename, const filename_t &target_filename);
 
+    // A wrapper around rotation filename format function(s).
+    filename_t get_filename_for_rotation_(const filename_t &filename, std::size_t index);
+
     filename_t base_filename_;
     std::size_t max_size_;
     std::size_t max_files_;
     std::size_t current_size_;
     details::file_helper file_helper_;
+    std::function<filename_t(const filename_t &filename, std::size_t index)> rotation_file_format_;
 };
 
 using rotating_file_sink_mt = rotating_file_sink<std::mutex>;

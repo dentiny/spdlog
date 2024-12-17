@@ -13,6 +13,7 @@
 #include <spdlog/details/null_mutex.h>
 #include <spdlog/fmt/fmt.h>
 
+#include <cassert>
 #include <cerrno>
 #include <chrono>
 #include <ctime>
@@ -41,12 +42,26 @@ SPDLOG_INLINE rotating_file_sink<Mutex>::rotating_file_sink(
     if (max_files > 200000) {
         throw_spdlog_ex("rotating sink constructor: max_files arg cannot exceed 200000");
     }
-    file_helper_.open(calc_filename(base_filename_, 0));
+    file_helper_.open(get_filename_for_rotation_(base_filename_, 0));
     current_size_ = file_helper_.size();  // expensive. called only once
     if (rotate_on_open && current_size_ > 0) {
         rotate_();
         current_size_ = 0;
     }
+}
+
+template <typename Mutex>
+SPDLOG_INLINE void rotating_file_sink<Mutex>::set_rotate_filename_format(std::function<filename_t(const filename_t &filename, std::size_t index)> rotation_file_format) {
+    assert(!rotation_file_format_);
+    rotation_file_format_ = std::move(rotation_file_format);
+}
+
+template <typename Mutex>
+SPDLOG_INLINE filename_t rotating_file_sink<Mutex>::get_filename_for_rotation_(const filename_t &filename, std::size_t index) {
+    if (rotation_file_format_) {
+      return rotation_file_format_(filename, index);
+    }
+    return calc_filename(filename, index);
 }
 
 // calc filename according to index and file extension if exists.
@@ -112,11 +127,11 @@ SPDLOG_INLINE void rotating_file_sink<Mutex>::rotate_() {
 
     file_helper_.close();
     for (auto i = max_files_; i > 0; --i) {
-        filename_t src = calc_filename(base_filename_, i - 1);
+        filename_t src = get_filename_for_rotation_(base_filename_, i - 1);
         if (!path_exists(src)) {
             continue;
         }
-        filename_t target = calc_filename(base_filename_, i);
+        filename_t target = get_filename_for_rotation_(base_filename_, i);
 
         if (!rename_file_(src, target)) {
             // if failed try again after a small delay.
